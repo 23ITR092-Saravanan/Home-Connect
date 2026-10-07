@@ -1,0 +1,6 @@
+{
+  "name": "HomeCraft Connect",
+  "description": "A marketplace connecting local home-based sellers and artisans with neighborhood buyers.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
