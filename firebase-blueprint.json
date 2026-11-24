@@ -1,0 +1,159 @@
+{
+  "entities": {
+    "buyer": {
+      "title": "Buyer Profile",
+      "description": "User profile representing a marketplace buyer",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "uid": { "type": "string" },
+        "username": { "type": "string", "maxLength": 50 },
+        "contactNumber": { "type": "string", "maxLength": 25 },
+        "district": { "type": "string", "maxLength": 60 },
+        "deliveryAddress": { "type": "string", "maxLength": 300 },
+        "pincode": { "type": "string", "maxLength": 6 },
+        "avatar": { "type": "string", "maxLength": 2048 },
+        "role": { "type": "string", "enum": ["buyer"] },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "username", "contactNumber", "district", "deliveryAddress", "pincode", "role"]
+    },
+    "seller": {
+      "title": "Seller Profile",
+      "description": "User profile representing a verified home artisan or merchant",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "uid": { "type": "string" },
+        "username": { "type": "string", "maxLength": 60 },
+        "emailId": { "type": "string", "maxLength": 120 },
+        "contactNumber": { "type": "string", "maxLength": 25 },
+        "district": { "type": "string", "maxLength": 60 },
+        "pincode": { "type": "string", "maxLength": 6 },
+        "categories": { "type": "array" },
+        "shopCode": { "type": "string", "maxLength": 30 },
+        "shopLogo": { "type": "string", "maxLength": 2048 },
+        "shopLogoStoragePath": { "type": "string", "maxLength": 300 },
+        "address": { "type": "string", "maxLength": 300 },
+        "rating": { "type": "number" },
+        "reviewCount": { "type": "number" },
+        "role": { "type": "string", "enum": ["seller"] },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "username", "emailId", "contactNumber", "district", "pincode", "categories", "shopCode", "address", "role"]
+    },
+    "product": {
+      "title": "Product Listing",
+      "description": "Handmade or local product published by a seller",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "sellerUid": { "type": "string" },
+        "sellerShopCode": { "type": "string", "maxLength": 30 },
+        "sellerName": { "type": "string", "maxLength": 60 },
+        "sellerDistrict": { "type": "string", "maxLength": 60 },
+        "sellerPincode": { "type": "string", "maxLength": 6 },
+        "sellerRating": { "type": "number" },
+        "productName": { "type": "string", "maxLength": 120 },
+        "category": { "type": "string", "maxLength": 80 },
+        "price": { "type": "number" },
+        "minOrderQty": { "type": "number" },
+        "image": { "type": "string", "maxLength": 2048 },
+        "imageStoragePath": { "type": "string", "maxLength": 300 },
+        "description": { "type": "string", "maxLength": 1200 },
+        "paymentMode": { "type": "string", "enum": ["COD", "Online Payment", "Both"] },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "sellerUid", "sellerShopCode", "sellerName", "sellerDistrict", "productName", "category", "price", "minOrderQty", "image", "paymentMode"]
+    },
+    "productRequest": {
+      "title": "Product Request / Order",
+      "description": "Order or bespoke customized product request submitted by buyer",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string", "enum": ["standard", "custom"] },
+        "productId": { "type": "string" },
+        "productName": { "type": "string", "maxLength": 120 },
+        "category": { "type": "string", "maxLength": 80 },
+        "sellerUid": { "type": "string" },
+        "sellerShopCode": { "type": "string", "maxLength": 30 },
+        "sellerName": { "type": "string", "maxLength": 60 },
+        "sellerDistrict": { "type": "string", "maxLength": 60 },
+        "sellerPincode": { "type": "string", "maxLength": 6 },
+        "buyerUid": { "type": "string" },
+        "buyerUsername": { "type": "string", "maxLength": 50 },
+        "buyerContact": { "type": "string", "maxLength": 25 },
+        "buyerDistrict": { "type": "string", "maxLength": 60 },
+        "deliveryAddress": { "type": "string", "maxLength": 300 },
+        "pincode": { "type": "string", "maxLength": 6 },
+        "quantity": { "type": "number" },
+        "unitPrice": { "type": "number" },
+        "totalPrice": { "type": "number" },
+        "paymentMode": { "type": "string", "enum": ["COD", "Online Payment", "Both"] },
+        "expectedDeliveryDate": { "type": "string", "maxLength": 25 },
+        "customDescription": { "type": "string", "maxLength": 1200 },
+        "sampleImage": { "type": "string", "maxLength": 2048 },
+        "sampleStoragePath": { "type": "string", "maxLength": 300 },
+        "status": { "type": "string", "enum": ["pending", "accepted", "rejected", "completed"] },
+        "rejectionReason": { "type": "string", "maxLength": 500 },
+        "buyerCompleted": { "type": "boolean" },
+        "sellerCompleted": { "type": "boolean" },
+        "reviewId": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "type", "productName", "category", "sellerShopCode", "sellerName", "buyerUid", "buyerUsername", "buyerContact", "buyerDistrict", "deliveryAddress", "pincode", "quantity", "paymentMode", "expectedDeliveryDate", "status", "buyerCompleted", "sellerCompleted"]
+    },
+    "review": {
+      "title": "Order Review",
+      "description": "Verified rating and written review left by a buyer on completed order",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "requestId": { "type": "string" },
+        "productId": { "type": "string" },
+        "productName": { "type": "string", "maxLength": 120 },
+        "sellerShopCode": { "type": "string", "maxLength": 30 },
+        "buyerUid": { "type": "string" },
+        "buyerUsername": { "type": "string", "maxLength": 50 },
+        "rating": { "type": "number" },
+        "writtenReview": { "type": "string", "maxLength": 600 },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "requestId", "sellerShopCode", "buyerUid", "buyerUsername", "rating", "writtenReview"]
+    }
+  },
+  "firestore": {
+    "/buyers/{buyerId}": {
+      "schema": { "$ref": "#/entities/buyer" },
+      "description": "Collection of registered buyer profiles (owner-only access)"
+    },
+    "/sellers/{sellerId}": {
+      "schema": { "$ref": "#/entities/seller" },
+      "description": "Collection of registered seller profiles"
+    },
+    "/products/{productId}": {
+      "schema": { "$ref": "#/entities/product" },
+      "description": "Collection of published products"
+    },
+    "/requests/{requestId}": {
+      "schema": { "$ref": "#/entities/productRequest" },
+      "description": "Collection of product orders and OPEN-MARKET custom requests"
+    },
+    "/reviews/{reviewId}": {
+      "schema": { "$ref": "#/entities/review" },
+      "description": "Collection of public customer reviews"
+    },
+    "/usernames/{username}": {
+      "schema": "object",
+      "description": "Mapping from buyer usernames to Firebase auth UID"
+    },
+    "/shopCodes/{shopCode}": {
+      "schema": "object",
+      "description": "Mapping from seller shop codes to Firebase auth UID"
+    }
+  }
+}

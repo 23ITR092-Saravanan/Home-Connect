@@ -1,0 +1,6 @@
+{
+  "name": "Home Connect",
+  "description": "Local community marketplace connecting buyers with verified local home sellers and artisans for custom and fresh home products.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

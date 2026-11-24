@@ -1,0 +1,147 @@
+@import "tailwindcss";
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    color: #0f172a;
+    background-color: #fafaf9;
+    min-height: 100vh;
+  }
+
+  ::selection {
+    background-color: #fed7aa;
+    color: #7c2d12;
+  }
+
+  /* Universal tactile button press and smooth transitions */
+  button, [role="button"], a {
+    transition: transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+  }
+
+  button:active:not(:disabled), [role="button"]:active:not(:disabled) {
+    transform: scale(0.95) translateY(1px);
+  }
+}
+
+/* Subtle dot-grid background for modern tech/artisan marketplace canvas */
+.pattern-dots {
+  background-image: radial-gradient(rgba(148, 163, 184, 0.18) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+.pattern-grid {
+  background-image: 
+    linear-gradient(to right, rgba(226, 232, 240, 0.5) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(226, 232, 240, 0.5) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* Ambient hero glow gradients */
+.glow-amber {
+  background: radial-gradient(circle at 50% 0%, rgba(245, 158, 11, 0.15) 0%, rgba(245, 158, 11, 0.03) 50%, transparent 80%);
+}
+
+.glow-sky {
+  background: radial-gradient(circle at 50% 0%, rgba(14, 165, 233, 0.15) 0%, rgba(14, 165, 233, 0.03) 50%, transparent 80%);
+}
+
+/* Page enter transition */
+@keyframes pageEnter {
+  0% {
+    opacity: 0;
+    transform: translateY(10px) scale(0.995);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-page-enter {
+  animation: pageEnter 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Gentle floating animation for cartoon elements */
+@keyframes floatSlow {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-5px) rotate(0.5deg);
+  }
+}
+
+.animate-float-slow {
+  animation: floatSlow 4s ease-in-out infinite;
+}
+
+/* Delightful button pop effects */
+.btn-cartoon-pop {
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.btn-cartoon-pop:hover {
+  transform: translateY(-2px) scale(1.02);
+}
+
+.btn-cartoon-pop:active {
+  transform: translateY(1px) scale(0.94);
+}
+
+/* Smooth micro-interactions */
+.card-hover-lift {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease;
+}
+
+.card-hover-lift:hover {
+  transform: translateY(-4px);
+}
+
+/* Button click popper particle burst */
+@keyframes popperBurst {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1) rotate(0deg);
+  }
+  60% {
+    opacity: 0.95;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--pop-x), var(--pop-y)) scale(0) rotate(var(--pop-rot));
+  }
+}
+
+.popper-particle {
+  position: fixed;
+  pointer-events: none;
+  z-index: 99999;
+  border-radius: 9999px;
+  animation: popperBurst 0.65s cubic-bezier(0.14, 0.8, 0.3, 1) forwards;
+}
+
+/* Expanding ripple ring on click */
+@keyframes popperRipple {
+  0% {
+    opacity: 0.8;
+    transform: translate(-50%, -50%) scale(0.2);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(2.8);
+  }
+}
+
+.popper-ripple {
+  position: fixed;
+  pointer-events: none;
+  z-index: 99998;
+  border-radius: 9999px;
+  animation: popperRipple 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}

@@ -1,0 +1,415 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    function isSignedIn() {
+      return request.auth != null && request.auth.uid != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isRegisteredBuyer() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/buyers/$(request.auth.uid));
+    }
+
+    function isRegisteredSeller() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/sellers/$(request.auth.uid));
+    }
+
+    function isStr(val, minLen, maxLen) {
+      return val is string && val.size() >= minLen && val.size() <= maxLen;
+    }
+
+    // Reject Data URLs in persisted image fields; allow HTTPS URLs or relative asset paths
+    function isSafeUrl(val) {
+      return isStr(val, 1, 2048) && !val.matches('^data:.*');
+    }
+
+    function isValidPaymentMode(val) {
+      return val in ['COD', 'Online Payment', 'Both'];
+    }
+
+    function isValidPincode(val) {
+      return val is string && val.matches('^[0-9]{6}$');
+    }
+
+    // ===============================================================
+    // Schema Validators
+    // ===============================================================
+
+    function isValidBuyer(data, buyerId) {
+      return data.keys().hasAll(['id', 'username', 'contactNumber', 'district', 'deliveryAddress', 'pincode', 'role'])
+        && data.keys().hasOnly([
+          'id', 'uid', 'username', 'contactNumber', 'district',
+          'deliveryAddress', 'pincode', 'role', 'avatar', 'createdAt'
+        ])
+        && data.id == buyerId
+        && (!('uid' in data) || data.uid == buyerId)
+        && data.role == 'buyer'
+        && isStr(data.username, 2, 50)
+        && isStr(data.contactNumber, 5, 25)
+        && isStr(data.district, 1, 60)
+        && isStr(data.deliveryAddress, 1, 300)
+        && isValidPincode(data.pincode)
+        && (!('avatar' in data) || isSafeUrl(data.avatar))
+        && (!('createdAt' in data) || isStr(data.createdAt, 1, 50));
+    }
+
+    function isValidSeller(data, sellerId) {
+      return data.keys().hasAll([
+          'id', 'username', 'emailId', 'contactNumber', 'district',
+          'pincode', 'categories', 'shopCode', 'address', 'role'
+        ])
+        && data.keys().hasOnly([
+          'id', 'uid', 'username', 'emailId', 'contactNumber', 'district',
+          'pincode', 'categories', 'shopCode', 'shopLogo', 'shopLogoStoragePath',
+          'address', 'rating', 'reviewCount', 'role', 'createdAt'
+        ])
+        && data.id == sellerId
+        && (!('uid' in data) || data.uid == sellerId)
+        && data.role == 'seller'
+        && isStr(data.username, 2, 60)
+        && isStr(data.emailId, 3, 120)
+        && isStr(data.contactNumber, 5, 25)
+        && isStr(data.district, 1, 60)
+        && isValidPincode(data.pincode)
+        && data.categories is list && data.categories.size() >= 1 && data.categories.size() <= 20
+        && isStr(data.shopCode, 2, 30)
+        && (!('shopLogo' in data) || isSafeUrl(data.shopLogo))
+        && (!('shopLogoStoragePath' in data) || isStr(data.shopLogoStoragePath, 1, 300))
+        && isStr(data.address, 1, 300)
+        && (!('rating' in data) || (data.rating is number && data.rating >= 0 && data.rating <= 5))
+        && (!('reviewCount' in data) || (data.reviewCount is number && data.reviewCount >= 0))
+        && (!('createdAt' in data) || isStr(data.createdAt, 1, 50));
+    }
+
+    function isValidProduct(data, productId) {
+      return data.keys().hasAll([
+          'id', 'sellerUid', 'sellerShopCode', 'sellerName', 'sellerDistrict',
+          'productName', 'category', 'price', 'minOrderQty', 'image', 'paymentMode'
+        ])
+        && data.keys().hasOnly([
+          'id', 'sellerUid', 'sellerShopCode', 'sellerName', 'sellerDistrict',
+          'sellerPincode', 'sellerRating', 'productName', 'category', 'price',
+          'minOrderQty', 'image', 'imageStoragePath', 'description', 'paymentMode',
+          'createdAt', 'updatedAt'
+        ])
+        && data.id == productId
+        && isStr(data.sellerUid, 1, 128)
+        && isStr(data.sellerShopCode, 2, 30)
+        && isStr(data.sellerName, 2, 60)
+        && isStr(data.sellerDistrict, 2, 60)
+        && (!('sellerPincode' in data) || data.sellerPincode == '' || isValidPincode(data.sellerPincode))
+        && (!('sellerRating' in data) || (data.sellerRating is number && data.sellerRating >= 0 && data.sellerRating <= 5))
+        && isStr(data.productName, 1, 120)
+        && isStr(data.category, 1, 80)
+        && data.price is number && data.price > 0
+        && data.minOrderQty is number && data.minOrderQty >= 1
+        && isSafeUrl(data.image)
+        && (!('imageStoragePath' in data) || isStr(data.imageStoragePath, 1, 300))
+        && (!('description' in data) || isStr(data.description, 0, 1200))
+        && isValidPaymentMode(data.paymentMode)
+        && (!('createdAt' in data) || isStr(data.createdAt, 1, 50))
+        && (!('updatedAt' in data) || isStr(data.updatedAt, 1, 50));
+    }
+
+    function isValidProductRequest(data, requestId) {
+      return data.keys().hasAll([
+          'id', 'type', 'productName', 'category', 'sellerShopCode', 'sellerName',
+          'buyerUid', 'buyerUsername', 'buyerContact', 'buyerDistrict',
+          'deliveryAddress', 'pincode', 'quantity', 'paymentMode',
+          'expectedDeliveryDate', 'status', 'buyerCompleted', 'sellerCompleted'
+        ])
+        && data.keys().hasOnly([
+          'id', 'type', 'productId', 'productName', 'category',
+          'sellerUid', 'sellerShopCode', 'sellerName', 'sellerDistrict', 'sellerPincode',
+          'buyerUid', 'buyerUsername', 'buyerContact', 'buyerDistrict', 'deliveryAddress', 'pincode',
+          'quantity', 'unitPrice', 'totalPrice', 'paymentMode', 'expectedDeliveryDate',
+          'customDescription', 'sampleImage', 'sampleStoragePath',
+          'status', 'rejectionReason', 'buyerCompleted', 'sellerCompleted', 'reviewId',
+          'createdAt', 'updatedAt'
+        ])
+        && data.id == requestId
+        && data.type in ['standard', 'custom']
+        && (!('productId' in data) || isStr(data.productId, 1, 128))
+        && isStr(data.productName, 1, 120)
+        && isStr(data.category, 1, 80)
+        && (!('sellerUid' in data) || isStr(data.sellerUid, 1, 128))
+        && isStr(data.sellerShopCode, 2, 30)
+        && isStr(data.sellerName, 2, 60)
+        && (!('sellerDistrict' in data) || isStr(data.sellerDistrict, 2, 60))
+        && (!('sellerPincode' in data) || data.sellerPincode == '' || isValidPincode(data.sellerPincode))
+        && isStr(data.buyerUid, 1, 128)
+        && isStr(data.buyerUsername, 2, 50)
+        && isStr(data.buyerContact, 5, 25)
+        && isStr(data.buyerDistrict, 1, 60)
+        && isStr(data.deliveryAddress, 1, 300)
+        && isValidPincode(data.pincode)
+        && data.quantity is number && data.quantity >= 1
+        && (!('unitPrice' in data) || (data.unitPrice is number && data.unitPrice > 0))
+        && (!('totalPrice' in data) || (data.totalPrice is number && data.totalPrice > 0))
+        && isValidPaymentMode(data.paymentMode)
+        && isStr(data.expectedDeliveryDate, 4, 25)
+        && (!('customDescription' in data) || isStr(data.customDescription, 0, 1200))
+        && (!('sampleImage' in data) || isSafeUrl(data.sampleImage))
+        && (!('sampleStoragePath' in data) || isStr(data.sampleStoragePath, 1, 300))
+        && data.status in ['pending', 'accepted', 'rejected', 'completed']
+        && (!('rejectionReason' in data) || isStr(data.rejectionReason, 1, 500))
+        && data.buyerCompleted is bool
+        && data.sellerCompleted is bool
+        && (!('reviewId' in data) || isStr(data.reviewId, 1, 128))
+        && (!('createdAt' in data) || isStr(data.createdAt, 1, 50))
+        && (!('updatedAt' in data) || isStr(data.updatedAt, 1, 50));
+    }
+
+    function isValidReview(data, reviewId) {
+      return data.keys().hasAll([
+          'id', 'requestId', 'sellerShopCode', 'buyerUid',
+          'buyerUsername', 'rating', 'writtenReview'
+        ])
+        && data.keys().hasOnly([
+          'id', 'requestId', 'productId', 'productName', 'sellerShopCode',
+          'buyerUid', 'buyerUsername', 'rating', 'writtenReview',
+          'createdAt', 'updatedAt'
+        ])
+        && data.id == reviewId
+        && isStr(data.requestId, 1, 128)
+        && (!('productId' in data) || isStr(data.productId, 1, 128))
+        && (!('productName' in data) || isStr(data.productName, 1, 120))
+        && isStr(data.sellerShopCode, 2, 30)
+        && isStr(data.buyerUid, 1, 128)
+        && isStr(data.buyerUsername, 2, 50)
+        && data.rating is number && data.rating >= 1 && data.rating <= 5
+        && isStr(data.writtenReview, 1, 600)
+        && (!('createdAt' in data) || isStr(data.createdAt, 1, 50))
+        && (!('updatedAt' in data) || isStr(data.updatedAt, 1, 50));
+    }
+
+    // ===============================================================
+    // Collection Rules
+    // ===============================================================
+
+    // Buyers: Strict owner-only profile access (no public listing or reading)
+    match /buyers/{buyerId} {
+      allow get: if isOwner(buyerId);
+      allow list: if false;
+      allow create: if isOwner(buyerId) && isValidBuyer(request.resource.data, buyerId);
+      allow update: if isOwner(buyerId)
+        && isValidBuyer(request.resource.data, buyerId)
+        && request.resource.data.username == resource.data.username
+        && request.resource.data.role == resource.data.role;
+      allow delete: if isOwner(buyerId);
+    }
+
+    // Sellers: Public read required for guest catalog/district lookup and email uniqueness check;
+    // owner-only profile writes, plus buyer-triggered rating/reviewCount recalculation.
+    match /sellers/{sellerId} {
+      allow read: if true;
+      allow create: if isOwner(sellerId)
+        && isValidSeller(request.resource.data, sellerId)
+        && (!('rating' in request.resource.data) || request.resource.data.rating == 5.0)
+        && (!('reviewCount' in request.resource.data) || request.resource.data.reviewCount == 0);
+      allow update: if (
+          isOwner(sellerId)
+          && isValidSeller(request.resource.data, sellerId)
+          && request.resource.data.shopCode == resource.data.shopCode
+          && request.resource.data.role == resource.data.role
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'username', 'emailId', 'contactNumber', 'district', 'pincode',
+            'address', 'shopLogo', 'shopLogoStoragePath', 'categories'
+          ])
+        ) || (
+          isRegisteredBuyer()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rating', 'reviewCount'])
+          && request.resource.data.rating is number
+          && request.resource.data.rating >= 0 && request.resource.data.rating <= 5
+          && request.resource.data.reviewCount is number
+          && request.resource.data.reviewCount >= 0
+        );
+      allow delete: if isOwner(sellerId);
+    }
+
+    // Products: Public read for guest catalog browsing; writes strictly restricted to owning seller
+    match /products/{productId} {
+      allow read: if true;
+      allow create: if isRegisteredSeller()
+        && request.resource.data.sellerUid == request.auth.uid
+        && isValidProduct(request.resource.data, productId);
+      allow update: if isRegisteredSeller()
+        && resource.data.sellerUid == request.auth.uid
+        && request.resource.data.sellerUid == resource.data.sellerUid
+        && request.resource.data.sellerShopCode == resource.data.sellerShopCode
+        && isValidProduct(request.resource.data, productId);
+      allow delete: if isSignedIn() && resource.data.sellerUid == request.auth.uid;
+    }
+
+    // Requests: Private to participating buyer & seller, plus OPEN-MARKET visibility for registered sellers
+    match /requests/{requestId} {
+      allow read: if isSignedIn() && (
+        resource.data.buyerUid == request.auth.uid ||
+        resource.data.sellerUid == request.auth.uid ||
+        (isRegisteredSeller() && resource.data.sellerShopCode == 'OPEN-MARKET')
+      );
+
+      allow create: if isRegisteredBuyer()
+        && request.resource.data.buyerUid == request.auth.uid
+        && request.resource.data.status == 'pending'
+        && request.resource.data.buyerCompleted == false
+        && request.resource.data.sellerCompleted == false
+        && !('reviewId' in request.resource.data)
+        && isValidProductRequest(request.resource.data, requestId)
+        && (
+          (request.resource.data.type == 'standard'
+            && request.resource.data.sellerShopCode != 'OPEN-MARKET'
+            && 'sellerUid' in request.resource.data) ||
+          (request.resource.data.type == 'custom'
+            && request.resource.data.sellerShopCode == 'OPEN-MARKET'
+            && !('sellerUid' in request.resource.data))
+        );
+
+      allow update: if isSignedIn()
+        && isValidProductRequest(request.resource.data, requestId)
+        && request.resource.data.buyerUid == resource.data.buyerUid
+        && request.resource.data.type == resource.data.type
+        && (
+          // 1. Buyer edits own pending request
+          (
+            resource.data.buyerUid == request.auth.uid
+            && resource.data.status == 'pending'
+            && request.resource.data.status == 'pending'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'quantity', 'totalPrice', 'expectedDeliveryDate',
+              'customDescription', 'deliveryAddress', 'updatedAt'
+            ])
+          ) ||
+          // 2. Buyer confirms delivery completion on accepted/completed request
+          (
+            resource.data.buyerUid == request.auth.uid
+            && resource.data.status in ['accepted', 'completed']
+            && request.resource.data.buyerCompleted == true
+            && request.resource.data.status == (resource.data.sellerCompleted == true ? 'completed' : 'accepted')
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'buyerCompleted', 'status', 'updatedAt'
+            ])
+          ) ||
+          // 3. Buyer links or unlinks reviewId after buyer completion
+          (
+            resource.data.buyerUid == request.auth.uid
+            && resource.data.buyerCompleted == true
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'reviewId', 'updatedAt'
+            ])
+          ) ||
+          // 4. Assigned seller accepts or rejects a pending request
+          (
+            isRegisteredSeller()
+            && resource.data.sellerUid == request.auth.uid
+            && resource.data.status == 'pending'
+            && request.resource.data.status in ['accepted', 'rejected']
+            && request.resource.data.sellerUid == request.auth.uid
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'status', 'rejectionReason', 'buyerCompleted', 'sellerCompleted',
+              'sellerUid', 'sellerShopCode', 'sellerName', 'sellerDistrict',
+              'sellerPincode', 'updatedAt'
+            ])
+          ) ||
+          // 5. Registered seller claims (accepts) an OPEN-MARKET custom request
+          (
+            isRegisteredSeller()
+            && resource.data.sellerShopCode == 'OPEN-MARKET'
+            && resource.data.status == 'pending'
+            && request.resource.data.status == 'accepted'
+            && request.resource.data.sellerUid == request.auth.uid
+            && request.resource.data.sellerShopCode != 'OPEN-MARKET'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'status', 'sellerUid', 'sellerShopCode', 'sellerName',
+              'sellerDistrict', 'sellerPincode', 'buyerCompleted',
+              'sellerCompleted', 'updatedAt'
+            ])
+          ) ||
+          // 6. Registered seller declines a pending OPEN-MARKET custom request
+          (
+            isRegisteredSeller()
+            && resource.data.sellerShopCode == 'OPEN-MARKET'
+            && resource.data.status == 'pending'
+            && request.resource.data.status == 'rejected'
+            && isStr(request.resource.data.rejectionReason, 1, 500)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'status', 'rejectionReason', 'updatedAt'
+            ])
+          ) ||
+          // 7. Assigned seller confirms completion on accepted/completed request
+          (
+            isRegisteredSeller()
+            && resource.data.sellerUid == request.auth.uid
+            && resource.data.status in ['accepted', 'completed']
+            && request.resource.data.sellerCompleted == true
+            && request.resource.data.status == (resource.data.buyerCompleted == true ? 'completed' : 'accepted')
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'sellerCompleted', 'status', 'updatedAt'
+            ])
+          )
+        );
+
+      allow delete: if isSignedIn()
+        && resource.data.buyerUid == request.auth.uid
+        && resource.data.status == 'pending';
+    }
+
+    // Reviews: Public read; create restricted to verified buyers who confirmed completion on that order
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isRegisteredBuyer()
+        && request.resource.data.buyerUid == request.auth.uid
+        && isValidReview(request.resource.data, reviewId)
+        && exists(/databases/$(database)/documents/requests/$(request.resource.data.requestId))
+        && get(/databases/$(database)/documents/requests/$(request.resource.data.requestId)).data.buyerUid == request.auth.uid
+        && get(/databases/$(database)/documents/requests/$(request.resource.data.requestId)).data.buyerCompleted == true;
+      allow update: if isSignedIn()
+        && resource.data.buyerUid == request.auth.uid
+        && isValidReview(request.resource.data, reviewId)
+        && request.resource.data.buyerUid == resource.data.buyerUid
+        && request.resource.data.requestId == resource.data.requestId
+        && request.resource.data.sellerShopCode == resource.data.sellerShopCode;
+      allow delete: if isSignedIn() && resource.data.buyerUid == request.auth.uid;
+    }
+
+    // Username uniqueness index: point-get for registration pre-check, no public listing
+    match /usernames/{username} {
+      allow get: if true;
+      allow list: if false;
+      allow create: if isSignedIn()
+        && !exists(/databases/$(database)/documents/usernames/$(username))
+        && request.resource.data.keys().hasAll(['username', 'uid', 'role'])
+        && request.resource.data.keys().hasOnly(['username', 'uid', 'role', 'createdAt'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.role == 'buyer'
+        && isStr(request.resource.data.username, 2, 50);
+      allow update: if false;
+      allow delete: if isSignedIn() && resource.data.uid == request.auth.uid;
+    }
+
+    // Shop Code uniqueness index: point-get for registration pre-check, no public listing
+    match /shopCodes/{shopCode} {
+      allow get: if true;
+      allow list: if false;
+      allow create: if isSignedIn()
+        && !exists(/databases/$(database)/documents/shopCodes/$(shopCode))
+        && request.resource.data.keys().hasAll(['shopCode', 'uid', 'role'])
+        && request.resource.data.keys().hasOnly(['shopCode', 'uid', 'role', 'createdAt'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.role == 'seller'
+        && isStr(request.resource.data.shopCode, 2, 30);
+      allow update: if false;
+      allow delete: if isSignedIn() && resource.data.uid == request.auth.uid;
+    }
+  }
+}
